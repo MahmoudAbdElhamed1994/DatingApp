@@ -1,6 +1,9 @@
 using DatingApp.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Sqlite;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -11,6 +14,19 @@ builder.Services.AddDbContext<DataContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 builder.Services.AddControllers();
 builder.Services.AddCors();
+builder.Services.AddScoped<IAuthRepository, AuthRepository>();
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+                .AddJwtBearer(options =>
+                {
+                    options.TokenValidationParameters = new TokenValidationParameters()
+                    {
+                        ValidateIssuerSigningKey = true,
+                        IssuerSigningKey = new SymmetricSecurityKey(Encoding.ASCII.GetBytes(builder.Configuration.GetSection("AppSettings:Token").Value)),
+                        ValidateIssuer = false,
+                        ValidateAudience = false
+                        
+                    };
+                });
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -23,12 +39,12 @@ if (app.Environment.IsDevelopment())
     });
 }
 app.UseHttpsRedirection();
-app.MapControllers();
+app.UseAuthentication();
+app.UseAuthorization();
 var summaries = new[]
 {
     "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
 };
-
 app.MapGet("/weatherforecast", () =>
 {
     var forecast =  Enumerable.Range(1, 5).Select(index =>
@@ -42,7 +58,8 @@ app.MapGet("/weatherforecast", () =>
     return forecast;
 })
 .WithName("GetWeatherForecast");
-app.UseCors(x=>x.AllowAnyHeader().AllowAnyOrigin().AllowAnyMethod());
+app.UseCors(x => x.AllowAnyHeader().AllowAnyOrigin().AllowAnyMethod());
+app.MapControllers();
 app.Run();
 
 record WeatherForecast(DateOnly Date, int TemperatureC, string Summary)
