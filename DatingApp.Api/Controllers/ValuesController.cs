@@ -19,7 +19,6 @@ namespace DatingApp.Api.Controllers
             _context = context;
         }
         [HttpGet]
-        [Authorize]
         public async Task<IActionResult> GetValues()
         {
             var values = await _context.Values.ToListAsync();
